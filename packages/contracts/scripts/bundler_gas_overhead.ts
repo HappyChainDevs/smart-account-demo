@@ -28,7 +28,7 @@ import { createPimlicoClient } from "permissionless/clients/pimlico"
 
 import { abis as mockAbis, deployment as mockDeployment } from "../deployments/anvil/mockTokens/abis"
 import { abis, deployment } from "../deployments/anvil/testing/abis"
-import { VALIDATOR_MODE, VALIDATOR_TYPE, getCustomNonce } from "./getNonce.ts"
+import { VALIDATOR_MODE, VALIDATOR_TYPE, getCustomNonce } from "./getNonce"
 
 const privateKey = process.env.PRIVATE_KEY_LOCAL as Hex
 const bundlerRpc = process.env.BUNDLER_LOCAL
