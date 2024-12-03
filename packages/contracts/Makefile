@@ -85,7 +85,7 @@ aa-demo-auto:
 	@lsof -ti :$(BUNDLER_PORT) | xargs kill -9 2>/dev/null || true
 	@make anvil > /dev/null 2>&1 &
 	@sleep 5
-	@cast send 0x4BC8e81Ad3BE83276837f184138FC96770C14297 --value 100ether --private-key 2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+	@cast wallet address --account test-account-0 --password-file .password.local | xargs -I {} cast send {} --value 100ether --private-key 2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
 	@make deploy-aa CONFIG=LOCAL
 	@make save-deployment DEPLOY_SCRIPT=DeployAA.s.sol DEPLOYMENT_NAME=anvil/testing CONFIG=LOCAL
 	@cd ../bundler && make build > /dev/null
@@ -98,6 +98,55 @@ aa-demo-auto:
 	@git restore -- deployments/anvil/testing deployments/anvil/mockTokens
 .PHONY: aa-demo-auto
 
+# Please, ensure that all Account Abstraction (AA) contracts are deployed before running the demo.
+nonce-demo:
+	@tsx ./scripts/consecutive_userops_demo.ts
+.PHONY: nonce-demo
+
+# Run the consecutive-nonces demo with all prerequisites
+nonce-demo-auto:
+	@lsof -ti :$(ANVIL_PORT) | xargs kill -9 2>/dev/null || true
+	@lsof -ti :$(BUNDLER_PORT) | xargs kill -9 2>/dev/null || true
+	@make anvil > /dev/null 2>&1 &
+	@sleep 5
+	@cast wallet address --account test-account-0 --password-file .password.local | xargs -I {} cast send {} --value 100ether --private-key 2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+	@make deploy-aa CONFIG=LOCAL
+	@make save-deployment DEPLOY_SCRIPT=DeployAA.s.sol DEPLOYMENT_NAME=anvil/testing CONFIG=LOCAL
+	@cd ../bundler && make build > /dev/null
+	@cd ../bundler && make run > /dev/null 2>&1 &
+	@sleep 5
+	@clear
+	@make nonce-demo
+	@lsof -ti :$(ANVIL_PORT) | xargs kill -9 2>/dev/null || true
+	@lsof -ti :$(BUNDLER_PORT) | xargs kill -9 2>/dev/null || true
+	@git restore -- deployments/anvil/testing deployments/anvil/mockTokens
+.PHONY: nonce-demo-auto
+
+# Run nonce-demo multiple times until success or max attempts
+
+# This target will:
+
+# Run up to 10 attempts
+# Clear the terminal before each attempt
+# Show which attempt number we're on
+# Stop immediately if any attempt succeeds (exits with code 0)
+# Wait 2 seconds between attempts
+# Show a failure message if all 10 attempts fail
+
+nonce-demo-retry:
+	@for i in {1..10}; do \
+		clear; \
+		echo "Attempt $$i of 10..."; \
+		if make nonce-demo; then \
+			echo "\nSuccess on attempt $$i!"; \
+			exit 0; \
+		fi; \
+		echo "\nAttempt $$i failed. Retrying..."; \
+		sleep 2; \
+	done; \
+	echo "\nFailed after 10 attempts"
+.PHONY: nonce-demo-retry
+
 # Please, ensure that all Account Abstraction (AA) and Mock Token contracts are deployed before generating the gas report.
 gas-bundler:
 	@tsx ./scripts/bundler_gas_overhead.ts | awk 'BEGIN {start=0} /Gas Usage for a Single UserOp/ {start=1} {if (start) print}' > bundler_gas_report.txt
@@ -109,7 +158,7 @@ gas-bundler-auto:
 	@lsof -ti :$(BUNDLER_PORT) | xargs kill -9 2>/dev/null || true
 	@make anvil > /dev/null 2>&1 &
 	@sleep 5
-	@cast send 0x4BC8e81Ad3BE83276837f184138FC96770C14297 --value 100ether --private-key 2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+	@cast wallet address --account test-account-0 --password-file .password.local | xargs -I {} cast send {} --value 100ether --private-key 2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
 	@make deploy-aa CONFIG=LOCAL
 	@make save-deployment DEPLOY_SCRIPT=DeployAA.s.sol DEPLOYMENT_NAME=anvil/testing CONFIG=LOCAL
 	@make deploy-mocks CONFIG=LOCAL
@@ -265,6 +314,10 @@ deploy-mocks:
 save-local-aa-deployment:
 	make save-deployment DEPLOY_SCRIPT=DeployAA.s.sol DEPLOYMENT_NAME=anvil/testing CONFIG=LOCAL
 .PHONY: save-local-aa-deployment
+
+save-local-mocks-deployment:
+	make save-deployment DEPLOY_SCRIPT=DeployMocks.s.sol DEPLOYMENT_NAME=anvil/mockTokens CONFIG=LOCAL
+.PHONY: save-local-mocks-deployment
 
 save-local-random-deployment:
 	make save-deployment DEPLOY_SCRIPT=DeployRandom.s.sol DEPLOYMENT_NAME=anvil/random CONFIG=LOCAL

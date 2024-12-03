@@ -293,7 +293,7 @@ async function testRootValidator(kernelAccount: SmartAccount, kernelClient: Smar
     const receiverAddress = getRandomAccount()
 
     const txHash = await kernelClient.sendTransaction({
-        account: kernelAccount,
+        account: kernelClient.account as SmartAccount,
         to: receiverAddress,
         chain: localhost,
         value: parseEther(AMOUNT),
@@ -328,7 +328,7 @@ async function testCustomValidator(
     await installCustomModule(kernelAccount, kernelClient, sessionAccount.address)
 
     const userOp: UserOperation<"0.7"> = await kernelClient.prepareUserOperation({
-        account: kernelAccount,
+        account: kernelClient.account as SmartAccount,
         calls: [
             {
                 to: receiverAddress,

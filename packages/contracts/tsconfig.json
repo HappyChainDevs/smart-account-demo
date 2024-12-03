@@ -9,9 +9,7 @@
       "moduleResolution": "node",
       "resolveJsonModule": true,
       "outDir": "dist",
-      "declaration": true,
-      "allowImportingTsExtensions": true,
-      "noEmit": true
+      "declaration": true
     },
     "include": ["scripts", "deployments"]
   }

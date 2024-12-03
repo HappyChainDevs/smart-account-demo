@@ -17,5 +17,5 @@
     "mempool-max-parallel-ops": 5,
     "mempool-max-queued-ops": 5,
     "enforce-unique-senders-per-bundle": false,
-    "max-gas-per-bundle": "10000000"
+    "max-gas-per-bundle": "20000000"
 }
