@@ -22,11 +22,19 @@ DEPLOY_SCRIPT ?= DeployL1Upgradeable.s.sol
 
 LN_FLAGS := $(if $(findstring Darwin,$(shell uname)),-shF,-sfT)
 
+NODE_MODULES := node_modules
+
 # Basic setup
 setup:
 	@if [ ! -f .env ]; then cp .env.example .env; fi
 	@bun install
-
+	ln $(LN_FLAGS) ../$(NODE_MODULES)/ExcessivelySafeCall lib/ExcessivelySafeCall
+	ln $(LN_FLAGS) ../$(NODE_MODULES)/solady lib/solady
+	ln $(LN_FLAGS) ../$(NODE_MODULES)/kernel lib/kernel
+	ln $(LN_FLAGS) ../$(NODE_MODULES)/forge-std lib/forge-std
+	ln $(LN_FLAGS) ../$(NODE_MODULES)/account-abstraction lib/account-abstraction
+	ln $(LN_FLAGS) ../../$(NODE_MODULES)/@openzeppelin/contracts lib/openzeppelin/src
+	ln $(LN_FLAGS) ../../$(NODE_MODULES)/@openzeppelin/contracts-upgradeable lib/oz-upgradeable/src
 ####################################################################################################
 # Build
 
