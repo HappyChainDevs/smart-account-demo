@@ -113,7 +113,7 @@ nonce-demo-auto:
 	@make deploy-aa CONFIG=LOCAL
 	@make save-deployment DEPLOY_SCRIPT=DeployAA.s.sol DEPLOYMENT_NAME=anvil/testing CONFIG=LOCAL
 	@cd ../bundler && make build > /dev/null
-	@cd ../bundler && make run > /dev/null 2>&1 &
+	@cd ../bundler && make run > log2.txt 2>&1 &
 	@sleep 5
 	@clear
 	@make nonce-demo
