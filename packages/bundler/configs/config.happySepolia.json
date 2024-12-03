@@ -15,5 +15,5 @@
     "mempool-max-parallel-ops": 5,
     "mempool-max-queued-ops": 5,
     "enforce-unique-senders-per-bundle": false,
-    "op-stack": true//  do we need this flag or similar https://docs.pimlico.io/infra/bundler/self-host#op-stack-chains
+    "op-stack": true
 }
