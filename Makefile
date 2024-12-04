@@ -9,35 +9,8 @@ include makefiles/help.mk
 # ==================================================================================================
 # Packages
 
-# packages shared between SDK & iframe (order matters)
-SHARED_PKGS := common,sdk-shared
-
-# packages only used in the SDK
-SDK_ONLY_PKGS := sdk-vanillajs,sdk-react,sdk-frontend-components,worker
-
-# packages needed to build the sdk
-SDK_PKGS := $(SHARED_PKGS),$(SDK_ONLY_PKGS)
-
-# packages needed to build the iframe
-IFRAME_PKGS := $(SHARED_PKGS),iframe
-
-# packages needed to build the sdk and iframe
-ACCOUNT_PKGS := $(SHARED_PKGS),$(SDK_ONLY_PKGS),iframe
-
-# demo packages (not including dependencies)
-DEMOS_PKGS := demo-vanillajs,demo-react,demo-wagmi-vue
-
-# packages only used in the backend services (order matters)
-BACKEND_ONLY_PKGS := transaction-manager,randomness-service
-
-# packages needed to build the backend services (order matters)
-BACKEND_PKGS := common,$(BACKEND_ONLY_PKGS)
-
-# all typescript packages, excluding docs
-TS_PKGS := $(ACCOUNT_PKGS),$(DEMOS_PKGS),${BACKEND_PKGS}
-
 # all packages (that have a package.json)
-ALL_PKGS := $(TS_PKGS),docs,contracts,configs
+ALL_PKGS := contracts,bundler
 
 # ==================================================================================================
 # CMDS
