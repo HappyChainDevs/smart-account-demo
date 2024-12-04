@@ -33,7 +33,7 @@ dist-ssr
 packages/contracts/cache/
 packages/contracts/out/
 
-# packages/contracts/lib
+packages/contracts/lib
 packages/contracts/broadcast/
 packages/frontend/src/generated.ts
 
