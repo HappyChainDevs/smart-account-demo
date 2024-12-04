@@ -14,5 +14,8 @@
     "safe-mode": false,
     "mempool-max-parallel-ops": 5,
     "mempool-max-queued-ops": 5,
-    "enforce-unique-senders-per-bundle": false
+    "enforce-unique-senders-per-bundle": false,
+    "max-gas-per-bundle": "10000000",
+    "public-client-log-level": "info",
+    "op-stack": true
 }

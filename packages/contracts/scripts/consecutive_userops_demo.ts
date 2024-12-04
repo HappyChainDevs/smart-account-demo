@@ -207,13 +207,13 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
     console.log("     UserOp2 nonce:", userOp2.nonce.toString())
 
     console.log("\n[3/4] Sending UserOps...")
-    // const [hash1, hash2] = await Promise.all([
-    //     kernelClient.sendUserOperation(userOp1),
-    //     kernelClient.sendUserOperation(userOp2),
-    // ])
-    const hash1 = await kernelClient.sendUserOperation(userOp1)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    const hash2 = await kernelClient.sendUserOperation(userOp2)
+    const [hash1, hash2] = await Promise.all([
+        kernelClient.sendUserOperation(userOp1),
+        kernelClient.sendUserOperation(userOp2),
+    ])
+    // const hash1 = await kernelClient.sendUserOperation(userOp1)
+    // await new Promise(resolve => setTimeout(resolve, 1000))
+    // const hash2 = await kernelClient.sendUserOperation(userOp2)
     console.log("     Both UserOps sent")
     console.log("     UserOp1 hash:", hash1.toString())
     console.log("     UserOp2 hash:", hash2.toString())
