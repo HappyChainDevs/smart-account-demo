@@ -17,6 +17,7 @@ import { createPimlicoClient } from "permissionless/clients/pimlico"
 
 import { abis, deployment } from "../deployments/anvil/testing/abis"
 import { getCustomNonce } from "./getNonce"
+import { DUMMY_ECDSA_SIGNATURE } from "permissionless/accounts/kernel/constants"
 
 const privateKey = process.env.PRIVATE_KEY_LOCAL as Hex
 const bundlerRpc = process.env.BUNDLER_LOCAL
@@ -116,6 +117,25 @@ function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7
                     ...parameters,
                     paymaster: paymasterAddress,
                 })
+
+                // TODO: Switch to using eth_estimateGas and benchmark to see if its' faster
+                // TODO: Also try to hardcode the "max gas values" for pm, to avoid extra RPC call
+                // const validatePaymasterUserOpGasEstimate = await publicClient.estimateContractGas({
+                //     address: deployment.HappyPaymaster,
+                //     abi: abis.HappyPaymaster,
+                //     functionName: "validatePaymasterUserOp",
+                //     args: [{
+                //         sender: parameters.sender,
+                //         nonce: parameters.nonce,
+                //         initCode: parameters.initCode ?? "0x",
+                //         callData: parameters.callData,
+                //         accountGasLimits: `0x${((parameters.callGasLimit ?? 0n) + (parameters.verificationGasLimit ?? 0n)).toString(16)}`,
+                //         preVerificationGas: parameters.preVerificationGas ?? 0n,
+                //         gasFees: `0x${((parameters.maxFeePerGas ?? 0n) + BigInt(parameters.maxPriorityFeePerGas ?? 0)).toString(16)}`,
+                //         paymasterAndData: paymasterAddress,
+                //         signature: DUMMY_ECDSA_SIGNATURE
+                //     }, "0x", 0n]
+                // })
 
                 return {
                     paymaster: paymasterAddress,

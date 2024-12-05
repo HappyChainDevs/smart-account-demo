@@ -107,6 +107,7 @@ aa-demo-auto:
 	@cast wallet address --account test-account-0 --password-file .password.local | xargs -I {} cast send {} --value 100ether --private-key 2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
 	@make deploy-aa CONFIG=LOCAL
 	@make save-deployment DEPLOY_SCRIPT=DeployAA.s.sol DEPLOYMENT_NAME=anvil/testing CONFIG=LOCAL
+	@make deploy-multicall
 	@cd ../bundler && make build > /dev/null
 	@cd ../bundler && make run > /dev/null 2>&1 &
 	@sleep 5
@@ -131,6 +132,7 @@ nonce-demo-auto:
 	@cast wallet address --account test-account-0 --password-file .password.local | xargs -I {} cast send {} --value 100ether --private-key 2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
 	@make deploy-aa CONFIG=LOCAL
 	@make save-deployment DEPLOY_SCRIPT=DeployAA.s.sol DEPLOYMENT_NAME=anvil/testing CONFIG=LOCAL
+	@make deploy-multicall
 	@cd ../bundler && make build > /dev/null
 	@cd ../bundler && make run > /dev/null 2>&1 &
 	@sleep 5
@@ -182,6 +184,7 @@ gas-bundler-auto:
 	@make save-deployment DEPLOY_SCRIPT=DeployAA.s.sol DEPLOYMENT_NAME=anvil/testing CONFIG=LOCAL
 	@make deploy-mocks CONFIG=LOCAL
 	@make save-deployment DEPLOY_SCRIPT=DeployMocks.s.sol DEPLOYMENT_NAME=anvil/mockTokens CONFIG=LOCAL
+	@make deploy-multicall
 	@cd ../bundler && make build > /dev/null
 	@cd ../bundler && make run > /dev/null 2>&1 &
 	@sleep 5
@@ -330,6 +333,11 @@ deploy-mocks:
 	make deploy DEPLOY_SCRIPT=mocks/DeployMocks.s.sol
 .PHONY: deploy-mocks
 
+deploy-multicall:
+	@cast send $(MULTICALL3_DEPLOYER) --value 100ether --private-key 2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+	@sleep 5
+	@cast publish $(MULTICALL3_TX) --rpc-url $(RPC_LOCAL)
+.PHONY: deploy-multicall
 save-local-aa-deployment:
 	make save-deployment DEPLOY_SCRIPT=DeployAA.s.sol DEPLOYMENT_NAME=anvil/testing CONFIG=LOCAL
 .PHONY: save-local-aa-deployment
