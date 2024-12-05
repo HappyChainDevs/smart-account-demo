@@ -219,15 +219,41 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
     console.log("     UserOp2 hash:", hash2.toString())
 
     console.log("\n[4/4] Awaiting receipts...")
-    const receipts = await Promise.all([
-        pimlicoClient.waitForUserOperationReceipt({hash: hash1}),
-        pimlicoClient.waitForUserOperationReceipt({hash: hash2}),
+    // const receipts = await Promise.all([
+    //     pimlicoClient.waitForUserOperationReceipt({hash: hash1}),
+    //     pimlicoClient.waitForUserOperationReceipt({hash: hash2}),
+    // ])
+    // console.log("\n[RESULTS]")
+    // console.log("-".repeat(50))
+    // console.log("UserOp1: Block", receipts[0].receipt.blockNumber, "| TxIndex:", receipts[0].receipt.transactionIndex)
+    // console.log("UserOp2: Block", receipts[1].receipt.blockNumber, "| TxIndex:", receipts[1].receipt.transactionIndex)
+
+    // Function to poll until we get a final status
+    const pollForCompletion = async (hash: Hex) => {
+        while (true) {
+            const {status, transactionHash} = await pimlicoClient.getUserOperationStatus({ hash })
+            console.log(`Status for ${hash}: ${status}`)
+            
+            // Check if we've reached a final state
+            // (Can add 'not_found' to the list as well)
+            if (['included', 'failed', 'rejected'].includes(status)) {
+                return status
+            }
+            
+            // Wait before polling again
+            await new Promise(resolve => setTimeout(resolve, 1000))
+        }
+    }
+
+    // Poll for both operations
+    const [status1, status2] = await Promise.all([
+        pollForCompletion(hash1),
+        pollForCompletion(hash2)
     ])
 
-    console.log("\n[RESULTS]")
-    console.log("-".repeat(50))
-    console.log("UserOp1: Block", receipts[0].receipt.blockNumber, "| TxIndex:", receipts[0].receipt.transactionIndex)
-    console.log("UserOp2: Block", receipts[1].receipt.blockNumber, "| TxIndex:", receipts[1].receipt.transactionIndex)
+    console.log('\nFinal statuses:')
+    console.log(`UserOp 1 (${hash1}): ${status1}`)
+    console.log(`UserOp 2 (${hash2}): ${status2}`)
 }
 
 async function main() {
