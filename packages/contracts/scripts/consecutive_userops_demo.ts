@@ -91,24 +91,7 @@ function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7
         account: kernelAccount,
         chain,
         bundlerTransport: http(bundlerRpc),
-        paymaster: isLocal ? {
-            async getPaymasterData(parameters: GetPaymasterDataParameters) {
-                return {
-                    paymaster: paymasterAddress,
-                    paymasterData: "0x",
-                    paymasterVerificationGasLimit: parameters.factory && parameters.factory !== "0x" ? 45000n : 25000n,
-                    paymasterPostOpGasLimit: 1n,
-                }
-            },
-            async getPaymasterStubData(_parameters: GetPaymasterStubDataParameters) {
-                return {
-                    paymaster: paymasterAddress,
-                    paymasterData: "0x",
-                    paymasterVerificationGasLimit: 80_000n,
-                    paymasterPostOpGasLimit: 0n,
-                }
-            },
-        } : pimlicoClient,
+        
         userOperation: isLocal ? {
             estimateFeesPerGas: async () => {
                 return await publicClient.estimateFeesPerGas()
@@ -128,7 +111,7 @@ async function fund_smart_account(accountAddress: Address): Promise<string> {
     const txHash = await walletClient.sendTransaction({
         account: account,
         to: accountAddress,
-        chain: localhost,
+        chain,
         value: parseEther("0.1"),
     })
 
@@ -174,14 +157,16 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
     console.log("-".repeat(50))
 
     console.log("[1/4] Deploying Smart Account...")
-    const receipt: UserOperationReceipt = await kernelClient.waitForUserOperationReceipt({
-        hash: await kernelClient.sendUserOperation({
-            account: kernelAccount,
-            calls: [createTransferCall(getRandomAccount())],
-        }),
-    })
-    if (!receipt.success) {
-        throw new Error("Smart Account deployment failed")
+    if (isLocal) { // Remove this if-check when trying with new private key on sepolia
+        const receipt: UserOperationReceipt = await kernelClient.waitForUserOperationReceipt({
+            hash: await kernelClient.sendUserOperation({
+                account: kernelAccount,
+                calls: [createTransferCall(getRandomAccount())],
+            }),
+        })
+        if (!receipt.success) {
+            throw new Error("Smart Account deployment failed")
+        }
     }
     console.log("     Deployed successfully")
 
@@ -192,7 +177,7 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
     })
     userOp1.signature = await kernelAccount.signUserOperation({
         ...userOp1,
-        chainId: localhost.id,
+        chainId: chain.id,
         signature: EMPTY_SIGNATURE,
     })
 
@@ -203,17 +188,20 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
     userOp2.nonce = userOp1.nonce + 1n
     userOp2.signature = await kernelAccount.signUserOperation({
         ...userOp2,
-        chainId: localhost.id,
+        chainId: chain.id,
         signature: EMPTY_SIGNATURE,
     })
     console.log("     UserOp1 nonce:", userOp1.nonce.toString())
     console.log("     UserOp2 nonce:", userOp2.nonce.toString())
 
     console.log("\n[3/4] Sending UserOps...")
-    const [hash1, hash2] = await Promise.all([
-        kernelClient.sendUserOperation(userOp1),
-        kernelClient.sendUserOperation(userOp2),
-    ])
+    const hash1 = await kernelClient.sendUserOperation(userOp1)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    const hash2 = await kernelClient.sendUserOperation(userOp2)
+    // const [hash1, hash2] = await Promise.all([
+    //     kernelClient.sendUserOperation(userOp1),
+    //     kernelClient.sendUserOperation(userOp2),
+    // ])
     console.log("     Both UserOps sent")
     console.log("     UserOp1 hash:", hash1.toString())
     console.log("     UserOp2 hash:", hash2.toString())
@@ -267,7 +255,6 @@ async function main() {
         if (prefundRes !== "success") {
             throw new Error("Funding SmartAccount failed")
         }
-
         const depositRes = await deposit_paymaster()
         if (depositRes !== "success") {
             throw new Error("Paymaster Deposit failed")
