@@ -1,4 +1,4 @@
-import type { Address, Hex, PrivateKeyAccount, WalletClient } from "viem"
+import type { Address, Hex, PrivateKeyAccount, PublicClient, WalletClient } from "viem"
 import { http, createPublicClient, createWalletClient, formatEther, numberToHex, parseEther } from "viem"
 import type {
     GetPaymasterDataParameters,
@@ -6,7 +6,7 @@ import type {
     SmartAccount,
     UserOperation,
 } from "viem/account-abstraction"
-import { entryPoint07Address } from "viem/account-abstraction"
+import { entryPoint07Address, type PackedUserOperation, toPackedUserOperation } from "viem/account-abstraction"
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts"
 import { localhost } from "viem/chains"
 
@@ -17,7 +17,6 @@ import { createPimlicoClient } from "permissionless/clients/pimlico"
 
 import { abis, deployment } from "../deployments/anvil/testing/abis"
 import { getCustomNonce } from "./getNonce"
-import { DUMMY_ECDSA_SIGNATURE } from "permissionless/accounts/kernel/constants"
 
 const privateKey = process.env.PRIVATE_KEY_LOCAL as Hex
 const bundlerRpc = process.env.BUNDLER_LOCAL
@@ -28,6 +27,8 @@ if (!privateKey || !bundlerRpc || !rpcURL) {
 }
 
 const account = privateKeyToAccount(privateKey)
+const sessionKey = generatePrivateKey()
+const sessionAccount = privateKeyToAccount(sessionKey)
 
 const walletClient = createWalletClient({
     account,
@@ -47,16 +48,6 @@ const pimlicoClient = createPimlicoClient({
         address: entryPoint07Address,
         version: "0.7",
     },
-})
-
-const sessionKey = generatePrivateKey()
-
-const sessionAccount = privateKeyToAccount(sessionKey)
-
-const sessionWallet = createWalletClient({
-    account: sessionAccount,
-    chain: localhost,
-    transport: http(rpcURL),
 })
 
 // The address used when installing a validator module to signify that the module has no hooks.
@@ -86,7 +77,7 @@ async function checkBalance(receiver: Address): Promise<string> {
     return formatEther(balance)
 }
 
-async function getKernelAccount(client: WalletClient, account: PrivateKeyAccount): Promise<SmartAccount> {
+async function getKernelAccount(client: PublicClient, account: PrivateKeyAccount): Promise<SmartAccount> {
     return toEcdsaKernelSmartAccount({
         client,
         entryPoint: {
@@ -113,35 +104,44 @@ function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7
         }),
         paymaster: {
             async getPaymasterData(parameters: GetPaymasterDataParameters) {
-                const gasEstimates = await pimlicoClient.estimateUserOperationGas({
-                    ...parameters,
-                    paymaster: paymasterAddress,
-                })
-
-                // TODO: Switch to using eth_estimateGas and benchmark to see if its' faster
-                // TODO: Also try to hardcode the "max gas values" for pm, to avoid extra RPC call
+                // const gasEstimates = await pimlicoClient.estimateUserOperationGas({
+                //     ...parameters,
+                //     paymaster: paymasterAddress,
+                // })
+                // console.log(gasEstimates)
+                
+                // Using public client instead, doesn't work as Paymaster has "OnlyEntrypoint" modifier
+                // const userOp: UserOperation<"0.7"> = {
+                //     sender: parameters.sender,
+                //     nonce: parameters.nonce,
+                //     factory: `0x${parameters.initCode?.slice(2, 20) ?? ''}`,
+                //     factoryData: `0x${parameters.initCode?.slice(20) ?? ''}`,
+                //     callData: parameters.callData,
+                //     callGasLimit: parameters.callGasLimit ?? 0n,
+                //     preVerificationGas: parameters.preVerificationGas ?? 0n,
+                //     paymaster: paymasterAddress,
+                //     paymasterData: "0x",
+                //     signature: "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c",
+                //     maxFeePerGas: parameters.maxFeePerGas ?? 0n,
+                //     maxPriorityFeePerGas: parameters.maxPriorityFeePerGas ?? 0n,
+                //     verificationGasLimit: parameters.verificationGasLimit ?? 0n,
+                // }
+                // const packedUserOp = toPackedUserOperation(userOp)
                 // const validatePaymasterUserOpGasEstimate = await publicClient.estimateContractGas({
                 //     address: deployment.HappyPaymaster,
                 //     abi: abis.HappyPaymaster,
                 //     functionName: "validatePaymasterUserOp",
-                //     args: [{
-                //         sender: parameters.sender,
-                //         nonce: parameters.nonce,
-                //         initCode: parameters.initCode ?? "0x",
-                //         callData: parameters.callData,
-                //         accountGasLimits: `0x${((parameters.callGasLimit ?? 0n) + (parameters.verificationGasLimit ?? 0n)).toString(16)}`,
-                //         preVerificationGas: parameters.preVerificationGas ?? 0n,
-                //         gasFees: `0x${((parameters.maxFeePerGas ?? 0n) + BigInt(parameters.maxPriorityFeePerGas ?? 0)).toString(16)}`,
-                //         paymasterAndData: paymasterAddress,
-                //         signature: DUMMY_ECDSA_SIGNATURE
-                //     }, "0x", 0n]
+                //     args: [packedUserOp, "0x0000000000000000000000000000000000000000000000000000000000000000", 0n]
                 // })
+                // console.log("publicClientGasEstimates: ", validatePaymasterUserOpGasEstimate)
 
                 return {
                     paymaster: paymasterAddress,
                     paymasterData: "0x", // Only required for extra context, no need to encode paymaster gas values manually
-                    paymasterVerificationGasLimit: gasEstimates.paymasterVerificationGasLimit ?? 0n,
-                    paymasterPostOpGasLimit: gasEstimates.paymasterPostOpGasLimit ?? 0n,
+                    paymasterVerificationGasLimit: parameters.factory && parameters.factory !== "0x" ? 45000n : 25000n,
+                    paymasterPostOpGasLimit: 1n,
+                    // paymasterVerificationGasLimit: gasEstimates.paymasterVerificationGasLimit ?? 0n,
+                    // paymasterPostOpGasLimit: gasEstimates.paymasterPostOpGasLimit ?? 0n,
                 }
             },
 
@@ -342,7 +342,7 @@ async function testCustomValidator(
     kernelAddress: Address,
 ) {
     const receiverAddress = getRandomAccount()
-    const sessionSigner = await getKernelAccount(sessionWallet, sessionAccount)
+    const sessionSigner = await getKernelAccount(publicClient, sessionAccount)
     const customNonce = await getCustomNonce(kernelAccount.client, kernelAddress, deployment.SessionKeyValidator)
 
     await installCustomModule(kernelAccount, kernelClient, sessionAccount.address)
@@ -388,7 +388,8 @@ async function testCustomValidator(
 }
 
 async function main() {
-    const kernelAccount: SmartAccount = await getKernelAccount(walletClient, account)
+    const SCAaccount = privateKeyToAccount(generatePrivateKey()) // Create a new account every time
+    const kernelAccount: SmartAccount = await getKernelAccount(publicClient, SCAaccount)
     const kernelClient = getKernelClient(kernelAccount)
     const kernelAddress = await kernelAccount.getAddress()
 

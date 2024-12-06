@@ -211,9 +211,6 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
         kernelClient.sendUserOperation(userOp1),
         kernelClient.sendUserOperation(userOp2),
     ])
-    // const hash1 = await kernelClient.sendUserOperation(userOp1)
-    // await new Promise(resolve => setTimeout(resolve, 1000))
-    // const hash2 = await kernelClient.sendUserOperation(userOp2)
     console.log("     Both UserOps sent")
     console.log("     UserOp1 hash:", hash1.toString())
     console.log("     UserOp2 hash:", hash2.toString())
@@ -228,7 +225,6 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
     // console.log("UserOp1: Block", receipts[0].receipt.blockNumber, "| TxIndex:", receipts[0].receipt.transactionIndex)
     // console.log("UserOp2: Block", receipts[1].receipt.blockNumber, "| TxIndex:", receipts[1].receipt.transactionIndex)
 
-    // Function to poll until we get a final status
     const pollForCompletion = async (hash: Hex) => {
         while (true) {
             const {status, transactionHash} = await pimlicoClient.getUserOperationStatus({ hash })
@@ -245,7 +241,6 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
         }
     }
 
-    // Poll for both operations
     const [status1, status2] = await Promise.all([
         pollForCompletion(hash1),
         pollForCompletion(hash2)
