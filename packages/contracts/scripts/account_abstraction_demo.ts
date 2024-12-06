@@ -99,49 +99,14 @@ function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7
     const kernelClientBase = createSmartAccountClient({
         account: kernelAccount,
         chain: localhost,
-        bundlerTransport: http(bundlerRpc, {
-            timeout: 30_000,
-        }),
+        bundlerTransport: http(bundlerRpc),
         paymaster: {
             async getPaymasterData(parameters: GetPaymasterDataParameters) {
-                // const gasEstimates = await pimlicoClient.estimateUserOperationGas({
-                //     ...parameters,
-                //     paymaster: paymasterAddress,
-                // })
-                // console.log(gasEstimates)
-                
-                // Using public client instead, doesn't work as Paymaster has "OnlyEntrypoint" modifier
-                // const userOp: UserOperation<"0.7"> = {
-                //     sender: parameters.sender,
-                //     nonce: parameters.nonce,
-                //     factory: `0x${parameters.initCode?.slice(2, 20) ?? ''}`,
-                //     factoryData: `0x${parameters.initCode?.slice(20) ?? ''}`,
-                //     callData: parameters.callData,
-                //     callGasLimit: parameters.callGasLimit ?? 0n,
-                //     preVerificationGas: parameters.preVerificationGas ?? 0n,
-                //     paymaster: paymasterAddress,
-                //     paymasterData: "0x",
-                //     signature: "0xfffffffffffffffffffffffffffffff0000000000000000000000000000000007aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1c",
-                //     maxFeePerGas: parameters.maxFeePerGas ?? 0n,
-                //     maxPriorityFeePerGas: parameters.maxPriorityFeePerGas ?? 0n,
-                //     verificationGasLimit: parameters.verificationGasLimit ?? 0n,
-                // }
-                // const packedUserOp = toPackedUserOperation(userOp)
-                // const validatePaymasterUserOpGasEstimate = await publicClient.estimateContractGas({
-                //     address: deployment.HappyPaymaster,
-                //     abi: abis.HappyPaymaster,
-                //     functionName: "validatePaymasterUserOp",
-                //     args: [packedUserOp, "0x0000000000000000000000000000000000000000000000000000000000000000", 0n]
-                // })
-                // console.log("publicClientGasEstimates: ", validatePaymasterUserOpGasEstimate)
-
                 return {
                     paymaster: paymasterAddress,
                     paymasterData: "0x", // Only required for extra context, no need to encode paymaster gas values manually
                     paymasterVerificationGasLimit: parameters.factory && parameters.factory !== "0x" ? 45000n : 25000n,
                     paymasterPostOpGasLimit: 1n,
-                    // paymasterVerificationGasLimit: gasEstimates.paymasterVerificationGasLimit ?? 0n,
-                    // paymasterPostOpGasLimit: gasEstimates.paymasterPostOpGasLimit ?? 0n,
                 }
             },
 
@@ -339,11 +304,10 @@ async function testRootValidator(kernelAccount: SmartAccount, kernelClient: Smar
 async function testCustomValidator(
     kernelAccount: SmartAccount,
     kernelClient: SmartAccountClient & Erc7579Actions<SmartAccount>,
-    kernelAddress: Address,
 ) {
     const receiverAddress = getRandomAccount()
     const sessionSigner = await getKernelAccount(publicClient, sessionAccount)
-    const customNonce = await getCustomNonce(kernelAccount.client, kernelAddress, deployment.SessionKeyValidator)
+    const customNonce = await getCustomNonce(kernelAccount.client, kernelAccount.address, deployment.SessionKeyValidator)
 
     await installCustomModule(kernelAccount, kernelClient, sessionAccount.address)
 
@@ -391,9 +355,8 @@ async function main() {
     const SCAaccount = privateKeyToAccount(generatePrivateKey()) // Create a new account every time
     const kernelAccount: SmartAccount = await getKernelAccount(publicClient, SCAaccount)
     const kernelClient = getKernelClient(kernelAccount)
-    const kernelAddress = await kernelAccount.getAddress()
 
-    const prefundRes = await fund_smart_account(kernelAddress)
+    const prefundRes = await fund_smart_account(kernelAccount.address)
     if (prefundRes !== "success") {
         throw new Error("Funding SmartAccount failed")
     }
@@ -410,7 +373,7 @@ async function main() {
     }
 
     try {
-        await testCustomValidator(kernelAccount, kernelClient, kernelAddress)
+        await testCustomValidator(kernelAccount, kernelClient)
     } catch (error) {
         console.error("Custom Validator: ", error)
     }
