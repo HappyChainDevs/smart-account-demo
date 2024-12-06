@@ -144,7 +144,7 @@ async function deposit_paymaster(): Promise<string> {
         abi: abis.EntryPointV7,
         functionName: "depositTo",
         args: [deployment.HappyPaymaster],
-        value: parseEther("10"),
+        value: parseEther("0.1"),
     })
 
     const receipt = await publicClient.waitForTransactionReceipt({

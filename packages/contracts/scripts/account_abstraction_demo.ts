@@ -1,4 +1,4 @@
-import type { Address, Hex, PrivateKeyAccount, PublicClient, WalletClient } from "viem"
+import type { Address, Hex, PrivateKeyAccount, PublicClient } from "viem"
 import { http, createPublicClient, createWalletClient, formatEther, numberToHex, parseEther } from "viem"
 import type {
     GetPaymasterDataParameters,
@@ -8,19 +8,25 @@ import type {
 } from "viem/account-abstraction"
 import { entryPoint07Address, type PackedUserOperation, toPackedUserOperation } from "viem/account-abstraction"
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts"
-import { localhost } from "viem/chains"
+import { localhost, sepolia } from "viem/chains"
 
 import { type SmartAccountClient, createSmartAccountClient } from "permissionless"
 import { toEcdsaKernelSmartAccount } from "permissionless/accounts"
 import { type Erc7579Actions, erc7579Actions } from "permissionless/actions/erc7579"
 import { createPimlicoClient } from "permissionless/clients/pimlico"
 
-import { abis, deployment } from "../deployments/anvil/testing/abis"
+import { abis, deployment as localDeployment } from "../deployments/anvil/testing/abis"
+import { deployment as sepoliaDeployment } from "../deployments/sepolia/aa/abis"
 import { getCustomNonce } from "./getNonce"
 
-const privateKey = process.env.PRIVATE_KEY_LOCAL as Hex
-const bundlerRpc = process.env.BUNDLER_LOCAL
-const rpcURL = process.env.RPC_LOCAL
+// Environment detection
+const CONFIG = process.env.CONFIG || 'LOCAL'
+const isLocal = CONFIG === 'LOCAL'
+
+const privateKey = isLocal ? process.env.PRIVATE_KEY_LOCAL as Hex : process.env.PRIVATE_KEY_TEST as Hex
+const bundlerRpc = isLocal ? process.env.BUNDLER_LOCAL : process.env.BUNDLER_TEST
+const rpcURL = isLocal ? process.env.RPC_LOCAL : process.env.RPC_TEST
+const chain = isLocal ? localhost : sepolia
 
 if (!privateKey || !bundlerRpc || !rpcURL) {
     throw new Error("Missing environment variables")
@@ -32,17 +38,17 @@ const sessionAccount = privateKeyToAccount(sessionKey)
 
 const walletClient = createWalletClient({
     account,
-    chain: localhost,
+    chain,
     transport: http(rpcURL),
 })
 
 const publicClient = createPublicClient({
-    chain: localhost,
+    chain,
     transport: http(rpcURL),
 })
 
 const pimlicoClient = createPimlicoClient({
-    chain: localhost,
+    chain,
     transport: http(bundlerRpc),
     entryPoint: {
         address: entryPoint07Address,
@@ -57,7 +63,7 @@ const NO_HOOKS_ADDRESS = "0x0000000000000000000000000000000000000001"
 // Function selector for transferring ETH from the smart account.
 // The function selector must be whitelisted when installing a validator module to allow ETH transfers.
 const EXECUTE_FUNCTION_SELECTOR = "0xe9ae5c53"
-const AMOUNT = "0.01"
+const AMOUNT = "0.0000001"
 const EMPTY_SIGNATURE = "0x"
 
 function toHexDigits(number: bigint, size: number): string {
@@ -86,43 +92,45 @@ async function getKernelAccount(client: PublicClient, account: PrivateKeyAccount
         },
         owners: [account],
         version: "0.3.1",
-        ecdsaValidatorAddress: deployment.ECDSAValidator,
-        accountLogicAddress: deployment.Kernel,
-        factoryAddress: deployment.KernelFactory,
-        metaFactoryAddress: deployment.FactoryStaker,
+        ecdsaValidatorAddress: isLocal ? localDeployment.ECDSAValidator : sepoliaDeployment.ECDSAValidator,
+        accountLogicAddress: isLocal ? localDeployment.Kernel : sepoliaDeployment.Kernel,
+        factoryAddress: isLocal ? localDeployment.KernelFactory : sepoliaDeployment.KernelFactory,
+        metaFactoryAddress: isLocal ? localDeployment.FactoryStaker : sepoliaDeployment.FactoryStaker,
     })
 }
 
 function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7579Actions<SmartAccount> {
-    const paymasterAddress = deployment.HappyPaymaster
+    const paymasterAddress = isLocal ? localDeployment.HappyPaymaster : sepoliaDeployment.HappyPaymaster
 
     const kernelClientBase = createSmartAccountClient({
         account: kernelAccount,
-        chain: localhost,
+        chain,
         bundlerTransport: http(bundlerRpc),
-        paymaster: {
+        paymaster: isLocal ? {
             async getPaymasterData(parameters: GetPaymasterDataParameters) {
                 return {
                     paymaster: paymasterAddress,
-                    paymasterData: "0x", // Only required for extra context, no need to encode paymaster gas values manually
+                    paymasterData: "0x",
                     paymasterVerificationGasLimit: parameters.factory && parameters.factory !== "0x" ? 45000n : 25000n,
                     paymasterPostOpGasLimit: 1n,
                 }
             },
-
-            // Using stub values from the docs for paymaster-related fields in unsigned user operations for gas estimation.
             async getPaymasterStubData(_parameters: GetPaymasterStubDataParameters) {
                 return {
                     paymaster: paymasterAddress,
                     paymasterData: "0x",
-                    paymasterVerificationGasLimit: 80_000n, // Increased value to account for possible higher gas usage
-                    paymasterPostOpGasLimit: 0n, // Set to 0 since the postOp function is never called
+                    paymasterVerificationGasLimit: 80_000n,
+                    paymasterPostOpGasLimit: 0n,
                 }
             },
-        },
-        userOperation: {
+        } : pimlicoClient,
+        userOperation: isLocal ? {
             estimateFeesPerGas: async () => {
                 return await publicClient.estimateFeesPerGas()
+            },
+        } : {
+            estimateFeesPerGas: async () => {
+                return (await pimlicoClient.getUserOperationGasPrice()).fast
             },
         },
     })
@@ -133,10 +141,10 @@ function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7
 
 async function fund_smart_account(accountAddress: Address): Promise<string> {
     const txHash = await walletClient.sendTransaction({
-        account: account,
+        account,
         to: accountAddress,
-        chain: localhost,
-        value: parseEther("0.1"),
+        chain,
+        value: parseEther("0.0000002"),
     })
 
     const receipt = await publicClient.waitForTransactionReceipt({
@@ -148,12 +156,13 @@ async function fund_smart_account(accountAddress: Address): Promise<string> {
 }
 
 async function deposit_paymaster(): Promise<string> {
+    const paymasterAddress = isLocal ? localDeployment.HappyPaymaster : sepoliaDeployment.HappyPaymaster
     const txHash = await walletClient.writeContract({
         address: entryPoint07Address,
         abi: abis.EntryPointV7,
         functionName: "depositTo",
-        args: [deployment.HappyPaymaster],
-        value: parseEther("10"),
+        args: [paymasterAddress],
+        value: parseEther("0.1"),
     })
 
     const receipt = await publicClient.waitForTransactionReceipt({
@@ -220,9 +229,10 @@ async function installCustomModule(
     kernelClient: SmartAccountClient & Erc7579Actions<SmartAccount>,
     sessionKey: Address,
 ) {
+    const sessionKeyValidator = isLocal ? localDeployment.SessionKeyValidator : sepoliaDeployment.SessionKeyValidator
     const opHash = await kernelClient.installModule({
         type: "validator",
-        address: deployment.SessionKeyValidator,
+        address: sessionKeyValidator,
         context: getInitData(NO_HOOKS_ADDRESS, sessionKey, "0x", EXECUTE_FUNCTION_SELECTOR),
         nonce: await kernelAccount.getNonce(),
     })
@@ -245,9 +255,10 @@ async function uninstallCustomModule(
     kernelAccount: SmartAccount,
     kernelClient: SmartAccountClient & Erc7579Actions<SmartAccount>,
 ) {
+    const sessionKeyValidator = isLocal ? localDeployment.SessionKeyValidator : sepoliaDeployment.SessionKeyValidator
     const opHash = await kernelClient.uninstallModule({
         type: "validator",
-        address: deployment.SessionKeyValidator,
+        address: sessionKeyValidator,
         context: NO_HOOKS_ADDRESS,
         nonce: await kernelAccount.getNonce(),
     })
@@ -267,9 +278,10 @@ async function uninstallCustomModule(
 }
 
 async function isCustomModuleInstalled(actionsClient: Erc7579Actions<SmartAccount>): Promise<boolean> {
+    const sessionKeyValidator = isLocal ? localDeployment.SessionKeyValidator : sepoliaDeployment.SessionKeyValidator
     return await actionsClient.isModuleInstalled({
         type: "validator",
-        address: deployment.SessionKeyValidator,
+        address: sessionKeyValidator,
         context: "0x",
     })
 }
@@ -280,7 +292,7 @@ async function testRootValidator(kernelAccount: SmartAccount, kernelClient: Smar
     const txHash = await kernelClient.sendTransaction({
         account: kernelClient.account as SmartAccount,
         to: receiverAddress,
-        chain: localhost,
+        chain,
         value: parseEther(AMOUNT),
     })
 
@@ -307,7 +319,8 @@ async function testCustomValidator(
 ) {
     const receiverAddress = getRandomAccount()
     const sessionSigner = await getKernelAccount(publicClient, sessionAccount)
-    const customNonce = await getCustomNonce(kernelAccount.client, kernelAccount.address, deployment.SessionKeyValidator)
+    const sessionKeyValidator = isLocal ? localDeployment.SessionKeyValidator : sepoliaDeployment.SessionKeyValidator
+    const customNonce = await getCustomNonce(kernelAccount.client, kernelAccount.address, sessionKeyValidator)
 
     await installCustomModule(kernelAccount, kernelClient, sessionAccount.address)
 
@@ -325,7 +338,7 @@ async function testCustomValidator(
 
     userOp.signature = await sessionSigner.signUserOperation({
         ...userOp,
-        chainId: localhost.id,
+        chainId: chain.id,
         signature: EMPTY_SIGNATURE, // The signature field must be empty when hashing and signing the user operation.
     })
 
@@ -355,15 +368,17 @@ async function main() {
     const SCAaccount = privateKeyToAccount(generatePrivateKey()) // Create a new account every time
     const kernelAccount: SmartAccount = await getKernelAccount(publicClient, SCAaccount)
     const kernelClient = getKernelClient(kernelAccount)
-
+    
     const prefundRes = await fund_smart_account(kernelAccount.address)
     if (prefundRes !== "success") {
         throw new Error("Funding SmartAccount failed")
     }
 
-    const depositRes = await deposit_paymaster()
-    if (depositRes !== "success") {
-        throw new Error("Paymaster Deposit failed")
+    if (isLocal) {
+        const depositRes = await deposit_paymaster()
+        if (depositRes !== "success") {
+            throw new Error("Paymaster Deposit failed")
+        }
     }
 
     try {
