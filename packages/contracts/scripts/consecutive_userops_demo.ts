@@ -7,8 +7,8 @@
 
 // What we see: Waiting for the 2nd userOp's receipt results in timeout, no response from the bundler.
 
-import type { Address, Hex, PrivateKeyAccount, PublicClient, WalletClient } from "viem"
-import { http, createPublicClient, createWalletClient, formatEther, parseEther } from "viem"
+import type { Address, Hex, PrivateKeyAccount, PublicClient } from "viem"
+import { http, createPublicClient, createWalletClient, parseEther } from "viem"
 import type {
     GetPaymasterDataParameters,
     GetPaymasterStubDataParameters,
@@ -19,18 +19,24 @@ import type {
 } from "viem/account-abstraction"
 import { entryPoint07Address } from "viem/account-abstraction"
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts"
-import { localhost } from "viem/chains"
+import { localhost, sepolia } from "viem/chains"
 
 import { type SmartAccountClient, createSmartAccountClient } from "permissionless"
 import { toEcdsaKernelSmartAccount } from "permissionless/accounts"
 import { type Erc7579Actions, erc7579Actions } from "permissionless/actions/erc7579"
 import { createPimlicoClient } from "permissionless/clients/pimlico"
 
-import { abis, deployment } from "../deployments/anvil/testing/abis"
+import { abis, deployment as localDeployment } from "../deployments/anvil/testing/abis"
+import { deployment as sepoliaDeployment } from "../deployments/sepolia/aa/abis"
 
-const privateKey = process.env.PRIVATE_KEY_LOCAL as Hex
-const bundlerRpc = process.env.BUNDLER_LOCAL
-const rpcURL = process.env.RPC_LOCAL
+// Environment detection
+const CONFIG = process.env.CONFIG || 'LOCAL'
+const isLocal = CONFIG === 'LOCAL'
+
+const privateKey = isLocal ? process.env.PRIVATE_KEY_LOCAL as Hex : process.env.PRIVATE_KEY_TEST as Hex
+const bundlerRpc = isLocal ? process.env.BUNDLER_LOCAL : process.env.BUNDLER_TEST
+const rpcURL = isLocal ? process.env.RPC_LOCAL : process.env.RPC_TEST
+const chain = isLocal ? localhost : sepolia
 
 if (!privateKey || !bundlerRpc || !rpcURL) {
     throw new Error("Missing environment variables")
@@ -40,17 +46,17 @@ const account = privateKeyToAccount(privateKey)
 
 const walletClient = createWalletClient({
     account,
-    chain: localhost,
+    chain,
     transport: http(rpcURL),
 })
 
 const publicClient = createPublicClient({
-    chain: localhost,
+    chain,
     transport: http(rpcURL),
 })
 
 const pimlicoClient = createPimlicoClient({
-    chain: localhost,
+    chain,
     transport: http(bundlerRpc),
     entryPoint: {
         address: entryPoint07Address,
@@ -71,37 +77,29 @@ async function getKernelAccount(client: PublicClient, account: PrivateKeyAccount
         },
         owners: [account],
         version: "0.3.1",
-        ecdsaValidatorAddress: deployment.ECDSAValidator,
-        accountLogicAddress: deployment.Kernel,
-        factoryAddress: deployment.KernelFactory,
-        metaFactoryAddress: deployment.FactoryStaker,
+        ecdsaValidatorAddress: isLocal ? localDeployment.ECDSAValidator : sepoliaDeployment.ECDSAValidator,
+        accountLogicAddress: isLocal ? localDeployment.Kernel : sepoliaDeployment.Kernel,
+        factoryAddress: isLocal ? localDeployment.KernelFactory : sepoliaDeployment.KernelFactory,
+        metaFactoryAddress: isLocal ? localDeployment.FactoryStaker : sepoliaDeployment.FactoryStaker,
     })
 }
 
 function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7579Actions<SmartAccount> {
-    const paymasterAddress = deployment.HappyPaymaster
+    const paymasterAddress = isLocal ? localDeployment.HappyPaymaster : sepoliaDeployment.HappyPaymaster
 
     const kernelClientBase = createSmartAccountClient({
         account: kernelAccount,
-        chain: localhost,
-        bundlerTransport: http(bundlerRpc, {
-            timeout: 30_000,
-        }),
-        paymaster: {
+        chain,
+        bundlerTransport: http(bundlerRpc),
+        paymaster: isLocal ? {
             async getPaymasterData(parameters: GetPaymasterDataParameters) {
-                const gasEstimates = await pimlicoClient.estimateUserOperationGas({
-                    ...parameters,
-                    paymaster: paymasterAddress,
-                })
-
                 return {
                     paymaster: paymasterAddress,
                     paymasterData: "0x",
-                    paymasterVerificationGasLimit: gasEstimates.paymasterVerificationGasLimit ?? 0n,
-                    paymasterPostOpGasLimit: gasEstimates.paymasterPostOpGasLimit ?? 0n,
+                    paymasterVerificationGasLimit: parameters.factory && parameters.factory !== "0x" ? 45000n : 25000n,
+                    paymasterPostOpGasLimit: 1n,
                 }
             },
-
             async getPaymasterStubData(_parameters: GetPaymasterStubDataParameters) {
                 return {
                     paymaster: paymasterAddress,
@@ -110,10 +108,14 @@ function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7
                     paymasterPostOpGasLimit: 0n,
                 }
             },
-        },
-        userOperation: {
+        } : pimlicoClient,
+        userOperation: isLocal ? {
             estimateFeesPerGas: async () => {
                 return await publicClient.estimateFeesPerGas()
+            },
+        } : {
+            estimateFeesPerGas: async () => {
+                return (await pimlicoClient.getUserOperationGasPrice()).fast
             },
         },
     })
@@ -139,11 +141,12 @@ async function fund_smart_account(accountAddress: Address): Promise<string> {
 }
 
 async function deposit_paymaster(): Promise<string> {
+    const paymasterAddress = isLocal ? localDeployment.HappyPaymaster : sepoliaDeployment.HappyPaymaster
     const txHash = await walletClient.writeContract({
         address: entryPoint07Address,
         abi: abis.EntryPointV7,
         functionName: "depositTo",
-        args: [deployment.HappyPaymaster],
+        args: [paymasterAddress],
         value: parseEther("0.1"),
     })
 
@@ -155,7 +158,7 @@ async function deposit_paymaster(): Promise<string> {
     return receipt.status
 }
 
-const AMOUNT = parseEther("0.01")
+const AMOUNT = parseEther("0")
 const EMPTY_SIGNATURE = "0x"
 
 function createTransferCall(address: Address): UserOperationCall {
@@ -253,17 +256,23 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
 
 async function main() {
     console.log("Starting consecutive userOps demo...")
-
-    const SCAaccount = privateKeyToAccount(generatePrivateKey()) // Create a new account every time
+    const SCAaccount = privateKeyToAccount(privateKey) // Create a new account every time
     const kernelAccount = await getKernelAccount(publicClient, SCAaccount)
     const kernelClient = getKernelClient(kernelAccount)
     const kernelAddress = kernelAccount.address
-
     console.log(`Kernel account address: ${kernelAddress}`)
 
-    // Fund the smart account and paymaster contracts
-    await fund_smart_account(kernelAddress)
-    await deposit_paymaster()
+    if (isLocal) {
+        const prefundRes = await fund_smart_account(kernelAccount.address)
+        if (prefundRes !== "success") {
+            throw new Error("Funding SmartAccount failed")
+        }
+
+        const depositRes = await deposit_paymaster()
+        if (depositRes !== "success") {
+            throw new Error("Paymaster Deposit failed")
+        }
+    }
 
     await testConsecutiveUserOps(kernelAccount, kernelClient)
 }
