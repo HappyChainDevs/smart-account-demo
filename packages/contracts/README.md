@@ -1,13 +1,5 @@
 # Contracts
 
-## Installation
-
-Tooling required:
-
-- [Foundry](https://github.com/gakonst/foundry)
-- Make
-- [Bun](https://bun.sh/) (`curl -fsSL https://bun.sh/install | bash`)
-
 ## Configuration
 
 Run `make setup` and customize `.env` if necessary.
@@ -31,17 +23,9 @@ By default:
 - `make test-gas` — run tests and show gas report on temp local devnet
 - `make test-fork` — run tests and show gas report using `$(RPC_$(CONFIG))` as RPC endpoint
 
-### Code Quality
-
-- `make lint` — lint files
-- `make format-check`- checks that the code is properly formatted, but does not modify it
-- `make format` — formats code
-- `make check` — runs `make lint` and `make format-check`
-
 ### Deployment
 
 - `make anvil` — run local Anvil devnet on port 1337
-- `make validate-upgrades` — uses OpenZeppelin Upgrades to perform checks related to upgradeability (automatically called by `make deploy`)
 ----
 - `make deploy` — executes a deploy script to deploy contracts to the chain, with many options (env variables):
   - `$CONFIG` — the configuration to use (one of `LOCAL` (default), `TEST`, `MAIN`)
@@ -52,13 +36,6 @@ By default:
     - `$(PASSFILE_$(CONFIG))` — the path to a file containing the password for the account
   - Otherwise:
     - `$(PRIVATE_KEY_$(CONFIG))` — the private key to use for the given config
-  - `$MODE` — one of `deploy` (default), `dry`, `resume`
-    - `deploy` deploys normally
-    - `dry` does a dry run (does not send transactions)
-    - `resume` resumes the last deployment
-  - `$DEPLOY_SCRIPT` — the basename of the deploy script to use from the deployment (looked in up `src/deploy`, defaults to `DeployL1Upgradeable.s.sol`)
-  - `$(VERIFY_$(CONFIG))` — whether to verify the contracts on Etherscan in the given config
-    - `$ETHERSCAN_API_KEY` — the Etherscan API key to use for verification
 ----
 - `make save-deployment` — saves information related to the latest deployment to `deployment/$DEPLOYMENT_NAME`:
   - a mapping of contract aliases to addresses in `deployment.json`
@@ -94,21 +71,6 @@ USE_FOUNDRY_ACCOUNT=true
 ```
 
 ## Dependency Management
-
-Foundry dependency management used to rely solely on git submodules. These suck and I absolutely
-refuse to use them.
-
-At the moment, we use (p)npm to manage all dependencies, using the npmjs.com registry when
-available, or importing from GitHub otherwise.
-
-Foundry now supports installing without creating a submodule, as well as the [Soldeer] package
-manager (which relies on its own centralized registry but also supports git dependencies). We could
-consider migrating in the future.
-
-[Soldeer]: https://book.getfoundry.sh/projects/soldeer
-
-In our current approaches, packages are installed in `node_modules`, so `make setup` will symlink
-them out to the `lib` directory.
 
 A note on [remappings](./remappings.txt) and these symlinks: we make sure that all libraries exist
 under `lib` and that the contracts are resolved from their `src` directory.

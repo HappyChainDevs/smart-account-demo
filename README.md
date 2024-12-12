@@ -65,3 +65,42 @@ cp packages/contracts/.env.example packages/contracts/.env
 - `RPC_LOCAL`: Local node URL
 - `BUNDLER_PORT`: Port for the local bundler
 - `PRIVATE_KEY_LOCAL`: Test account private key
+
+## Consecutive UserOps Demo
+
+This demo showcases a specific behavior with the Alto bundler regarding consecutive UserOperations. The demo attempts to send two UserOps with consecutive nonces simultaneously.
+
+### Setup
+
+1. Set up a Foundry account for testing following the instructions in [`packages/contracts/README.md`](packages/contracts/README.md#deployment). You'll need to:
+   - Import your account using `cast wallet import`
+   - Set up the password file
+   - Configure the account name in the environment
+
+2. Install dependencies and setup the environment:
+```bash
+cd packages/contracts
+make setup
+```
+
+### Running the Demo
+
+Run the consecutive nonce demo:
+```bash
+make nonce-demo-auto
+```
+
+This will:
+- Start a local Anvil node
+- Deploy the necessary contracts
+- Start the bundler
+- Execute the consecutive UserOps demo
+
+### Expected Behavior
+The demo script ([`packages/contracts/scripts/consecutive_userops_demo.ts`](packages/contracts/scripts/consecutive_userops_demo.ts)) should demonstrate the following sequence:
+1. First UserOp with nonce 'n' gets bundled and executed on-chain
+2. Second UserOp with nonce 'n+1' gets picked from the internal mempool
+3. Second UserOp gets bundled and executed on-chain
+
+### Current Behavior
+Currently, while the first UserOp executes successfully, the second UserOp appears to time out with no response from the bundler. This behavior differs from the expected sequence and is the subject of investigation.

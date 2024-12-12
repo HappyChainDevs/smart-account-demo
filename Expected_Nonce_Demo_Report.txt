@@ -1,0 +1,25 @@
+[TEST] Consecutive UserOps with Root Validator
+--------------------------------------------------
+[1/4] Deploying Smart Account...
+     Deployed successfully
+
+[2/4] Preparing UserOps...
+     UserOp1 nonce: 978519876548585605826952495779161235206723144448887181191741055164219393
+     UserOp2 nonce: 978519876548585605826952495779161235206723144448887181191741055164219394
+
+[3/4] Sending UserOps...
+     Both UserOps sent
+     UserOp1 hash: 0xbf86d67de555a46a4be9515e662e3e28c5f4a40448e3ea8c7f32de7b3b240645
+     UserOp2 hash: 0xc8ab03dc5ee73ec77eefe004c0c38bc5d20fbd56b1773fc45e707467a41c0ace
+
+[4/4] Awaiting receipts...
+Status for 0xbf86d67de555a46a4be9515e662e3e28c5f4a40448e3ea8c7f32de7b3b240645: submitted
+Status for 0xc8ab03dc5ee73ec77eefe004c0c38bc5d20fbd56b1773fc45e707467a41c0ace: not_submitted
+Status for 0xbf86d67de555a46a4be9515e662e3e28c5f4a40448e3ea8c7f32de7b3b240645: included
+Status for 0xc8ab03dc5ee73ec77eefe004c0c38bc5d20fbd56b1773fc45e707467a41c0ace: submitted
+Status for 0xc8ab03dc5ee73ec77eefe004c0c38bc5d20fbd56b1773fc45e707467a41c0ace: submitted
+Status for 0xc8ab03dc5ee73ec77eefe004c0c38bc5d20fbd56b1773fc45e707467a41c0ace: included
+
+Final statuses:
+UserOp 1 (0xbf86d67de555a46a4be9515e662e3e28c5f4a40448e3ea8c7f32de7b3b240645): included
+UserOp 2 (0xc8ab03dc5ee73ec77eefe004c0c38bc5d20fbd56b1773fc45e707467a41c0ace): included
