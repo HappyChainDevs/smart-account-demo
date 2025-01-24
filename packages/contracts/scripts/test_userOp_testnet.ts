@@ -1,14 +1,7 @@
-// The demo structure is similar to the `account_abstraction_demo.ts" file
-// This one contains a case where we try to send 2 userOps with consecutive nonces simultaneously.
-// The expected result is :
-//      1. userOp with nonce 'n' gets bundled and executed on-chain first
-//      2. Now that nonce 'n+1' is valid, the 2nd userOp gets picked from the internal mempool
-//      3. 2nd userOp gets bundled and executed on-chain
-
-// What we see: Waiting for the 2nd userOp's receipt results in timeout, no response from the bundler.
+// script runs as a test for consecutive userOps on the testnet
 
 import type { Address, Hex, PrivateKeyAccount, PublicClient } from "viem"
-import { http, createPublicClient, createWalletClient, parseEther, defineChain } from "viem"
+import { http, createPublicClient, parseEther, defineChain } from "viem"
 import type {
     GetPaymasterDataParameters,
     GetPaymasterStubDataParameters,
@@ -19,34 +12,28 @@ import type {
 } from "viem/account-abstraction"
 import { entryPoint07Address } from "viem/account-abstraction"
 import { generatePrivateKey, privateKeyToAccount, privateKeyToAddress } from "viem/accounts"
-import { localhost, sepolia } from "viem/chains"
-
 import { type SmartAccountClient, createSmartAccountClient } from "permissionless"
 import { toEcdsaKernelSmartAccount } from "permissionless/accounts"
 import { type Erc7579Actions, erc7579Actions } from "permissionless/actions/erc7579"
 import { createPimlicoClient } from "permissionless/clients/pimlico"
-
-import { abis, deployment as localDeployment } from "../deployments/anvil/testing/abis"
 import { deployment as happyTestnetDeployment } from "../deployments/happy-sepolia/aa/abis"
 
 // Environment detection
+const privateKey = process.env.PRIVATE_KEY_TEST as Hex
+const bundlerRpc = "https://bundler-staging.happy.tech"
+const rpcURL = "https://happy-testnet-sepolia.rpc.caldera.xyz/http"
+const PAYMASTER_VERIFICATION_GAS_LIMIT_WITH_FACTORY = 45000n
+const PAYMASTER_POST_OP_GAS_LIMIT = 1n // Set to 1 since the postOp function is never called
+const PAYMASTER_DATA = "0x" as const
+const AMOUNT = parseEther("0")
+const EMPTY_SIGNATURE = "0x"
+const NUMBER_OF_USEROPS = 5
 
-const CONFIG = process.env.CONFIG || 'LOCAL'
-console.log(`Running in ${CONFIG} mode`)
 
-const isLocal = CONFIG === 'LOCAL'
-console.log(`Running in ${isLocal ? 'LOCAL' : 'TEST'} mode`)
-
-const privateKey = isLocal ? process.env.PRIVATE_KEY_LOCAL as Hex : process.env.PRIVATE_KEY_TEST as Hex
-const bundlerRpc = "https://bundler-staging.happy.tech"// isLocal ? process.env.BUNDLER_LOCAL : process.env.BUNDLER_TEST
-const rpcURL = "https://happy-testnet-sepolia.rpc.caldera.xyz/http" //isLocal ? process.env.RPC_LOCAL : process.env.RPC_TEST
-console.log(`Using RPC: ${rpcURL}`)
-console.log(`Using Bundler: ${bundlerRpc}`)
-console.log(`Using private key: ${privateKey}`)
 if (!privateKey || !bundlerRpc || !rpcURL) {
     throw new Error("Missing environment variables")
 }
-const chain = isLocal ? localhost : defineChain({
+const chain = defineChain({
     name: "sepolia",
     id: 216,
     rpcUrls: {
@@ -60,14 +47,6 @@ const chain = isLocal ? localhost : defineChain({
         decimals: 18,
     },
 
-})
-
-const account = privateKeyToAccount(privateKey)
-
-const walletClient = createWalletClient({
-    account,
-    chain,
-    transport: http(rpcURL),
 })
 
 const publicClient = createPublicClient({
@@ -97,19 +76,16 @@ async function getKernelAccount(client: PublicClient, account: PrivateKeyAccount
         },
         owners: [account],
         version: "0.3.1",
-        ecdsaValidatorAddress: isLocal ? localDeployment.ECDSAValidator : happyTestnetDeployment.ECDSAValidator,
-        accountLogicAddress: isLocal ? localDeployment.Kernel : happyTestnetDeployment.Kernel,
-        factoryAddress: isLocal ? localDeployment.KernelFactory : happyTestnetDeployment.KernelFactory,
-        metaFactoryAddress: isLocal ? localDeployment.FactoryStaker : happyTestnetDeployment.FactoryStaker,
+        ecdsaValidatorAddress: happyTestnetDeployment.ECDSAValidator,
+        accountLogicAddress: happyTestnetDeployment.Kernel,
+        factoryAddress: happyTestnetDeployment.KernelFactory,
+        metaFactoryAddress: happyTestnetDeployment.FactoryStaker,
     })
 }
 
-const PAYMASTER_VERIFICATION_GAS_LIMIT_WITH_FACTORY = 45000n
-const PAYMASTER_POST_OP_GAS_LIMIT = 1n // Set to 1 since the postOp function is never called
-const PAYMASTER_DATA = "0x" as const
 
 function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7579Actions<SmartAccount> {
-    const paymasterAddress = isLocal ? localDeployment.HappyPaymaster : happyTestnetDeployment.HappyPaymaster
+    const paymasterAddress = happyTestnetDeployment.HappyPaymaster
 
     const kernelClientBase = createSmartAccountClient({
         account: kernelAccount,
@@ -134,11 +110,7 @@ function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7
                 }
             },
         },
-        userOperation: isLocal ? {
-            estimateFeesPerGas: async () => {
-                return await publicClient.estimateFeesPerGas()
-            },
-        } : {
+        userOperation: {
             estimateFeesPerGas: async () => {
                 return (await pimlicoClient.getUserOperationGasPrice()).fast
             },
@@ -148,44 +120,6 @@ function getKernelClient(kernelAccount: SmartAccount): SmartAccountClient & Erc7
     const extendedClient = kernelClientBase.extend(erc7579Actions())
     return extendedClient as typeof kernelClientBase & typeof extendedClient
 }
-
-async function fund_smart_account(accountAddress: Address): Promise<string> {
-    const txHash = await walletClient.sendTransaction({
-        account: account,
-        to: accountAddress,
-        chain,
-        value: parseEther("0.1"),
-    })
-
-    const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
-        confirmations: 1,
-    })
-
-    return receipt.status
-}
-
-async function deposit_paymaster(): Promise<string> {
-    const paymasterAddress = isLocal ? localDeployment.HappyPaymaster : happyTestnetDeployment.HappyPaymaster
-    const txHash = await walletClient.writeContract({
-        address: entryPoint07Address,
-        abi: abis.EntryPointV7,
-        functionName: "depositTo",
-        args: [paymasterAddress],
-        value: parseEther("0.1"),
-    })
-
-    const receipt = await publicClient.waitForTransactionReceipt({
-        hash: txHash,
-        confirmations: 1,
-    })
-
-    return receipt.status
-}
-
-const AMOUNT = parseEther("0")
-const EMPTY_SIGNATURE = "0x"
-const NUMBER_OF_USEROPS = 10
 
 function createTransferCall(address: Address): UserOperationCall {
     return {
@@ -197,11 +131,10 @@ function createTransferCall(address: Address): UserOperationCall {
 
 async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient: SmartAccountClient) {
     const sender = (privateKeyToAccount(privateKey)).address
-    console.log("balance of sender:", await publicClient.getBalance({address: sender}))
     console.log("[TEST] Consecutive UserOps with Root Validator")
     console.log("-".repeat(50))
 
-    console.log("[1/4] Deploying Smart Account...")
+    console.log("[1/3] Deploying Smart Account...")
     const receipt: UserOperationReceipt = await kernelClient.waitForUserOperationReceipt({
         hash: await kernelClient.sendUserOperation({
             account: kernelAccount,
@@ -213,37 +146,34 @@ async function testConsecutiveUserOps(kernelAccount: SmartAccount, kernelClient:
     }
 
     console.log("     Deployed successfully")
-    console.log("\n[3/4] Sending UserOps...")
+    console.log("\n[2/3] Sending UserOps...")
     const hashes = []
     const currentNonce = await kernelClient.account?.getNonce()
     if(!currentNonce){
         throw new Error("Failed to get nonce")
     }
     console.log("     Current nonce:", currentNonce)  
-    for(let i = 0; i < 1; i++){
+    for(let i = 0; i < NUMBER_OF_USEROPS; i++){
         const hash = await sendUserOp(kernelAccount, kernelClient, currentNonce + BigInt(i))
         hashes.push(hash)
         
     }
-    console.log("\n[4/4] Awaiting receipts...")
+    console.log("\n[3/3] Awaiting receipts...")
 
     const statuses = await Promise.all(hashes.map(hash => pollForCompletion(hash)))
 
     for(let i = 0; i < statuses.length; i++){
         console.log(`UserOp ${i} status: ${statuses[i]}`)
     }
-
-    
+    console.log("Completed sending and awaiting receipts")
 }
 
 async function sendUserOp(kernelAccount: SmartAccount, kernelClient: SmartAccountClient, nonce: bigint){
-    
     const userOp: UserOperation<"0.7"> = await kernelClient.prepareUserOperation({
         account: kernelAccount,
         calls: [createTransferCall(getRandomAccount())],
     })
     userOp.nonce = nonce
-    console.log("     UserOp nonce:", userOp.nonce.toString())
     userOp.signature = await kernelAccount.signUserOperation({
         ...userOp,
         chainId: chain.id,
@@ -273,30 +203,18 @@ async function pollForCompletion(hash: Hex){
 
 
 async function main() {
-    console.log("Starting consecutive userOps demo...")
+    console.log("Starting test userOps on testnet...")
     const SCAaccount = privateKeyToAccount(privateKey)
     const kernelAccount = await getKernelAccount(publicClient, SCAaccount)
     const kernelClient = getKernelClient(kernelAccount)
     const kernelAddress = kernelAccount.address
     console.log(`Kernel account address: ${kernelAddress}`)
-
-    if (isLocal) {
-        const prefundRes = await fund_smart_account(kernelAccount.address)
-        if (prefundRes !== "success") {
-            throw new Error("Funding SmartAccount failed")
-        }
-        const depositRes = await deposit_paymaster()
-        if (depositRes !== "success") {
-            throw new Error("Paymaster Deposit failed")
-        }
-    }
-
     await testConsecutiveUserOps(kernelAccount, kernelClient)
 }
 
 main()
     .then(() => {
-        console.log("Demo completed successfully")
+        console.log("Test completed successfully")
         setTimeout(() => process.exit(0), 100)
     })
     .catch((error) => {

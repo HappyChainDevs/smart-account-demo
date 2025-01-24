@@ -124,7 +124,7 @@ nonce-demo:
 .PHONY: nonce-demo
 
 test-aa-testnet:
-	@tsx ./scripts/test-userOp-testnet.ts
+	@tsx ./scripts/test_userOp_testnet.ts
 .PHONY: test-aa-testnet
 
 # Run the consecutive-nonces demo with all prerequisites
