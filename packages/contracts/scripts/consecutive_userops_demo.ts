@@ -38,8 +38,8 @@ const isLocal = CONFIG === 'LOCAL'
 console.log(`Running in ${isLocal ? 'LOCAL' : 'TEST'} mode`)
 
 const privateKey = isLocal ? process.env.PRIVATE_KEY_LOCAL as Hex : process.env.PRIVATE_KEY_TEST as Hex
-const bundlerRpc = isLocal ? process.env.BUNDLER_LOCAL : process.env.BUNDLER_TEST
-const rpcURL = isLocal ? process.env.RPC_LOCAL : process.env.RPC_TEST
+const bundlerRpc = "https://bundler-staging.happy.tech"// isLocal ? process.env.BUNDLER_LOCAL : process.env.BUNDLER_TEST
+const rpcURL = "https://happy-testnet-sepolia.rpc.caldera.xyz/http" //isLocal ? process.env.RPC_LOCAL : process.env.RPC_TEST
 console.log(`Using RPC: ${rpcURL}`)
 console.log(`Using Bundler: ${bundlerRpc}`)
 console.log(`Using private key: ${privateKey}`)
