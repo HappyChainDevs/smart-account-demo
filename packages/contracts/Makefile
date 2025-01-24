@@ -120,9 +120,12 @@ aa-demo-auto:
 
 # Please, ensure that all Account Abstraction (AA) contracts are deployed before running the demo.
 nonce-demo:
-	echo $(CONFIG)
 	@tsx ./scripts/consecutive_userops_demo.ts
 .PHONY: nonce-demo
+
+test-aa-testnet:
+	@tsx ./scripts/test-userOp-testnet.ts
+.PHONY: test-aa-testnet
 
 # Run the consecutive-nonces demo with all prerequisites
 nonce-demo-auto: nonce-demo-setup

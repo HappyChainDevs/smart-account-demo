@@ -33,4 +33,4 @@ jobs:
             RPC_TEST: "https://happy-testnet-sepolia.rpc.caldera.xyz/http"
         run: | 
             cd packages/contracts    
-            make nonce-demo
+            make test-aa-testnet
