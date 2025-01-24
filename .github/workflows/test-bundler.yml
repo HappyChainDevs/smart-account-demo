@@ -1,0 +1,27 @@
+name: Run Nonce Demo
+
+on:
+  schedule:
+    - cron: '0 * * * *' # Runs every hour
+  workflow_dispatch:  
+
+jobs:
+  run-demo:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install repo
+        run: 
+            cd packages/contracts
+            make setup
+
+      - name: Run Nonce Demo
+        env:
+            PRIVATE_KEY_TEST: "0x5832c3fc8dced2c02fa5eca2e3c040e7637df37027c752bf40ec6b5b74991fb4"
+            CONFIG: TEST
+            BUNDLER_TEST: "https://bundler-staging.happy.tech"
+            RPC_TEST: "https://happy-testnet-sepolia.rpc.caldera.xyz/http"
+        run: make nonce-demo

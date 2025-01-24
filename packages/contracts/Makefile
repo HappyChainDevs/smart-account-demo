@@ -6,7 +6,7 @@ include ../../makefiles/help.mk
 -include .env
 
 # Set CONFIG to "LOCAL" by default. Other valid values: "TEST" or "MAIN".
-CONFIG ?= LOCAL
+CONFIG ?= TEST
 
 # Set the list of allowed bundlers based on the current deployment configuration (LOCAL, TEST, etc.)
 export ALLOWED_BUNDLERS = $(ALLOWED_BUNDLERS_$(CONFIG))
@@ -120,11 +120,19 @@ aa-demo-auto:
 
 # Please, ensure that all Account Abstraction (AA) contracts are deployed before running the demo.
 nonce-demo:
+	echo $(CONFIG)
 	@tsx ./scripts/consecutive_userops_demo.ts
 .PHONY: nonce-demo
 
 # Run the consecutive-nonces demo with all prerequisites
-nonce-demo-auto:
+nonce-demo-auto: nonce-demo-setup
+	@make nonce-demo
+	@lsof -ti :$(ANVIL_PORT) | xargs kill -9 2>/dev/null || true
+	@lsof -ti :$(BUNDLER_PORT) | xargs kill -9 2>/dev/null || true
+	@git restore -- deployments/anvil/testing deployments/anvil/mockTokens
+.PHONY: nonce-demo-auto
+
+nonce-demo-setup:
 	@lsof -ti :$(ANVIL_PORT) | xargs kill -9 2>/dev/null || true
 	@lsof -ti :$(BUNDLER_PORT) | xargs kill -9 2>/dev/null || true
 	@make anvil > /dev/null 2>&1 &
@@ -135,13 +143,8 @@ nonce-demo-auto:
 	@make deploy-multicall
 	@cd ../bundler && make build > /dev/null
 	@cd ../bundler && make run > /dev/null 2>&1 &
-	@sleep 5
-	@clear
-	@make nonce-demo
-	@lsof -ti :$(ANVIL_PORT) | xargs kill -9 2>/dev/null || true
-	@lsof -ti :$(BUNDLER_PORT) | xargs kill -9 2>/dev/null || true
-	@git restore -- deployments/anvil/testing deployments/anvil/mockTokens
-.PHONY: nonce-demo-auto
+	echo "Setup complete. Can now start the demo."
+.PHONY: nonce-demo-setup
 
 # Run nonce-demo multiple times until success or max attempts
 
