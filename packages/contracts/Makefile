@@ -6,7 +6,7 @@ include ../../makefiles/help.mk
 -include .env
 
 # Set CONFIG to "LOCAL" by default. Other valid values: "TEST" or "MAIN".
-CONFIG ?= TEST
+CONFIG ?= LOCAL
 
 # Set the list of allowed bundlers based on the current deployment configuration (LOCAL, TEST, etc.)
 export ALLOWED_BUNDLERS = $(ALLOWED_BUNDLERS_$(CONFIG))
@@ -124,7 +124,7 @@ nonce-demo:
 .PHONY: nonce-demo
 
 test-aa-testnet:
-	@tsx ./scripts/test_userOp_testnet.ts
+	@tsx ./scripts/sendNow_testnet.ts
 .PHONY: test-aa-testnet
 
 # Run the consecutive-nonces demo with all prerequisites
