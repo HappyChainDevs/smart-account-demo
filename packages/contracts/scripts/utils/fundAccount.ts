@@ -1,0 +1,27 @@
+import {createWalletClient, createPublicClient, parseEther, http} from "viem"
+import { happychainTestnet } from "viem/chains";
+import type { Address, PrivateKeyAccount } from "viem"
+
+const publicClient = createPublicClient({
+    chain: happychainTestnet,
+    transport: http(),
+})
+const walletClient = createWalletClient({
+    chain: happychainTestnet,
+    transport: http(),
+})
+
+export async function fundAccount(address: Address, fundingAccount: PrivateKeyAccount): Promise<void> {
+    console.log(`Funding account ${address} from ${fundingAccount.address}`);
+
+    const txHash = await walletClient.sendTransaction({
+        account: fundingAccount,
+        to: address,
+        value: parseEther("0.1"),
+    })
+    const receipt = await publicClient.waitForTransactionReceipt({
+        hash: txHash,
+        confirmations: 1,
+    })
+
+}
