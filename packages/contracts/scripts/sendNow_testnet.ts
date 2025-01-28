@@ -19,7 +19,7 @@ async function generatePrivateKeys(count: number): Promise<Hex[]> {
 }
 
 async function runSendNowWithPrivateKey(_privateKey: Hex, _numberOfUserOps: number) {
-    console.log("Starting test userOps on testnet...")
+    console.log("Starting test sendUserOperationNow on testnet...")
     const kernelClient = await createKernelClient(_privateKey)
     await testSendUserOpNow(kernelClient, _numberOfUserOps)
 }

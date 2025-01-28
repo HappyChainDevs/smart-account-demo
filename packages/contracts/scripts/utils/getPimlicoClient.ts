@@ -3,7 +3,7 @@ import { happychainTestnet } from "viem/chains";
 import { http } from "viem"
 import { entryPoint07Address } from "viem/account-abstraction"
 
-export const bundlerRpc = "http:localhost:49531"//"https://bundler-staging.happy.tech"
+export const bundlerRpc = "https://bundler-staging.happy.tech"
 
 export function getPimlicoClient(): PimlicoClient {
     return createPimlicoClient({
