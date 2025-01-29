@@ -46,6 +46,7 @@ async function getKernelAccount(client: PublicClient, account: PrivateKeyAccount
 export async function createKernelClient(_privateKey: Hex) : Promise<SmartAccountClient & Erc7579Actions<SmartAccount>>{
     const SCAaccount = privateKeyToAccount(_privateKey)
     const kernelAccount = await getKernelAccount(publicClient, SCAaccount)
+    console.log("Kernel account address: ", kernelAccount)
     const kernelClient = getKernelClient(kernelAccount)
     const kernelAddress = kernelAccount.address
     console.log(`Kernel account address: ${kernelAddress}`)

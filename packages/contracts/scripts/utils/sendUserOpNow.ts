@@ -9,13 +9,13 @@ import { entryPoint07Address } from "viem/account-abstraction"
 import { happychainTestnet } from "viem/chains"
 import type { SmartAccountClient } from "permissionless"
 
-import { createTransferCall } from "./createTransferCall"
-import { getRandomAccount } from "./getRandomAccount"
+import { createMintCall } from "./createMintCall"
+
 
 export async function sendUserOpNow(kernelAccount: SmartAccount, kernelClient: SmartAccountClient, nonce: bigint){
     const userOp: UserOperation<"0.7"> = await kernelClient.prepareUserOperation({
         account: kernelAccount,
-        calls: [createTransferCall(getRandomAccount())],
+        calls: [createMintCall()],
     })
     const strippedUserOp = {
         sender: userOp.sender,
