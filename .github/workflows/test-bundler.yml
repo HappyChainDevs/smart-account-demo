@@ -25,7 +25,7 @@ jobs:
             cd packages/contracts
             make setup
 
-      - name: Run Nonce Demo
+      - name: Run Send UserOp Now
         env:
             PRIVATE_KEY_TEST: "0x5832c3fc8dced2c02fa5eca2e3c040e7637df37027c752bf40ec6b5b74991fb4"
             CONFIG: "TEST"
