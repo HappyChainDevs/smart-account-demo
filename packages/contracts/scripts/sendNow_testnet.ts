@@ -44,8 +44,8 @@ async function testSendUserOpNow(kernelClient: SmartAccountClient, numberOfUserO
 }
 
 async function main() {
-    const privateKeys = await generatePrivateKeys(NUM_ACCOUNTS)
-    const promises = privateKeys.map(privateKey => runSendNowWithPrivateKey(privateKey, 10))
+    const privateKeys = await generatePrivateKeys(1)
+    const promises = privateKeys.map(privateKey => runSendNowWithPrivateKey(privateKey, 1))
     await Promise.all(promises)
 } 
 main().then(() => {
