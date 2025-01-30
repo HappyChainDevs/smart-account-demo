@@ -52,5 +52,5 @@ export async function sendUserOpNow(kernelAccount: SmartAccount, kernelClient: S
         "UserOp with hash:", receipt.userOpHash,  "\n", 
          "& nonceHex:", nonce.toString(16),  "\n", 
           "nonceDec", nonce,  "\n")
-    return {hash: receipt.userOpHash, userOp: userOp}
+    return receipt
 }

@@ -11,17 +11,17 @@ const walletClient = createWalletClient({
     transport: http(),
 })
 
-export async function fundAccount(address: Address, fundingAccount: PrivateKeyAccount): Promise<void> {
+export async function fundAccount(address: Address, fundingAccount: PrivateKeyAccount, amount: bigint): Promise<void> {
     console.log(`Funding account ${address} from ${fundingAccount.address}`);
 
     const txHash = await walletClient.sendTransaction({
         account: fundingAccount,
         to: address,
-        value: parseEther("0.1"),
+        value: amount,
     })
     const receipt = await publicClient.waitForTransactionReceipt({
         hash: txHash,
         confirmations: 1,
     })
-
+    console.log("Funded")
 }
