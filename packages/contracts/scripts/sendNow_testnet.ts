@@ -39,7 +39,7 @@ async function sendNow(kernelClient: SmartAccountClient, nonce: bigint){
 
 
 async function attemptMultipleUserOps() {
-    const privateKeys = await generatePrivateKeys(10)
+    const privateKeys = await generatePrivateKeys(1)
     const clients = []
     for(let i = 0; i < privateKeys.length; i++){
         clients.push(await createKernelClient(privateKeys[i]))
