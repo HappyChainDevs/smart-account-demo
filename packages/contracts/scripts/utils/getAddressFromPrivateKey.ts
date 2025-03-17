@@ -2,7 +2,7 @@ import { createPublicClient, Hex, http } from "viem"
 import { privateKeyToAddress } from "viem/accounts"
 import { happychainTestnet } from "viem/chains"
 
-const privateKeys= ["0x"]
+const privateKeys= [""]
 async function getAddressAndTransactionCount() {
     const client = createPublicClient({
         chain: happychainTestnet,

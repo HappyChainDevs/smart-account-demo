@@ -27,10 +27,10 @@ jobs:
 
       - name: Run Send UserOp Now
         env:
-            PRIVATE_KEY_TEST: "0x5832c3fc8dced2c02fa5eca2e3c040e7637df37027c752bf40ec6b5b74991fb4"
+            PRIVATE_KEY_TEST: ${{secrets.TESTNET_PRIVATE_KEY}}
             CONFIG: "TEST"
             BUNDLER_TEST: "https://bundler-staging.happy.tech"
-            RPC_TEST: "https://happy-testnet-sepolia.rpc.caldera.xyz/http"
+            RPC_TEST: "https://rpc.testnet.happy.tech/http"
         run: | 
             cd packages/contracts    
             make test-aa-testnet
