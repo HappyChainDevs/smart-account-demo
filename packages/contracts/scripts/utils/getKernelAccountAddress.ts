@@ -17,7 +17,7 @@ import {
 } from "viem"
 import { InvalidInputRpcError } from "viem"
 import { type SmartAccount, entryPoint07Address } from "viem/account-abstraction"
-import { happychainTestnet } from "viem/chains"
+import {happychainTestnet} from "./chain"
 import { deployment as happyTestnetDeployment } from "../../deployments/happy-sepolia/aa/abis"
 import { generatePrivateKeys } from "./generatePrivateKeys"
 import { privateKeyToAccount } from "viem/accounts"

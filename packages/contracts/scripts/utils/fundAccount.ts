@@ -1,27 +1,14 @@
 import {createWalletClient, createPublicClient, parseEther, http, defineChain} from "viem"
 import type { Address, PrivateKeyAccount } from "viem"
+import {happychainTestnet} from "./chain"
 
-const happyChain = defineChain({
-    name: "HappyChain",
-    id: 216,
-    rpcUrls: {
-        default: {
-            http: ["https://rpc.testnet.happy.tech"],
-        }
-    },
-    nativeCurrency: {
-        name: "Happy",
-        symbol: "HAPPY",
-        decimals: 18,
-    },
-})
 
 const publicClient = createPublicClient({
-    chain: happyChain,
+    chain: happychainTestnet,
     transport: http(),
 })
 const walletClient = createWalletClient({
-    chain: happyChain,
+    chain: happychainTestnet,
     transport: http(),
 })
 

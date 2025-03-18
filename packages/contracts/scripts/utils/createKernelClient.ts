@@ -1,6 +1,6 @@
 import type { Hex, PrivateKeyAccount, PublicClient } from "viem"
 import { http, createPublicClient } from "viem"
-import { happychainTestnet } from "viem/chains"
+import {happychainTestnet} from "./chain"
 import type {
     GetPaymasterDataParameters,
     GetPaymasterStubDataParameters,

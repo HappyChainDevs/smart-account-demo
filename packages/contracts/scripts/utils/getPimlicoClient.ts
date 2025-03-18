@@ -1,5 +1,5 @@
 import { type PimlicoClient, createPimlicoClient } from "permissionless/clients/pimlico"
-import { happychainTestnet } from "viem/chains";
+import {happychainTestnet} from "./chain"
 import { http } from "viem"
 import { entryPoint07Address } from "viem/account-abstraction"
 

@@ -6,7 +6,7 @@ import type {
     UserOperationReceipt
 } from "viem/account-abstraction"
 import { entryPoint07Address } from "viem/account-abstraction"
-import { happychainTestnet } from "viem/chains"
+import {happychainTestnet} from "./chain"
 import type { SmartAccountClient } from "permissionless"
 
 import { createTransferCall } from "./createTransferCall"
